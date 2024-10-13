@@ -1,6 +1,6 @@
 {
-  "name": "angular-rsocket",
-  "version": "0.0.1-alpha.1",
+  "name": "@michaeldatastic/angular-rsocket",
+  "version": "0.0.1-alpha.3.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/saleweaver/angular-rsocket"
@@ -12,7 +12,6 @@
     "rsocket-websocket-client": "^0.0.29-alpha.0"
   },
   "devDependencies": {
-    "@types/rsocket-core": "^0.0.11",
-    "@types/rsocket-websocket-client": "^0.0.7"
+    "@types/rsocket-core": "^0.0.11"
   }
 }
