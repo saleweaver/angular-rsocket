@@ -14,6 +14,11 @@ An Angular service for integrating RSocket communication into your Angular appli
 - Automatic Reconnection: Configurable automatic reconnection logic with retry attempts and delays.
 
 
+<div style="background-color: #5258d1; border-left: 10px solid #2196F3; padding: 10px;">
+ Currently only Websocket Transport is supported, but a future release will include support for other transports.
+</div>
+
+
 ### Installation
 
 To install the Angular RSocket Service, simply run:
