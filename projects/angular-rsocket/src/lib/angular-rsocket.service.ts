@@ -1,4 +1,4 @@
-import {Inject, Injectable, signal, Signal, WritableSignal} from '@angular/core';
+import {effect, Inject, Injectable, signal, Signal, WritableSignal} from '@angular/core';
 import {
   BufferEncoders,
   encodeBearerAuthMetadata,
@@ -257,12 +257,14 @@ export default class RSocketWebSocketClient implements DuplexConnection {
 @Injectable()
 export class RSocketService {
   // Signal to track connection status
-  private _isConnected: BehaviorSubject<boolean> = new BehaviorSubject(false);
-  public readonly isConnected: Observable<boolean> = this._isConnected.asObservable();
+  private _isConnected: WritableSignal<boolean> = signal(false);
+  public readonly isConnected: Signal<boolean> = this._isConnected.asReadonly();
 
   // RSocket client and socket instances
   private client?: RSocketClient<any, any>;
-  private socket: any; // Replace 'any' with the appropriate type if available
+  private socket = signal<any>(null);
+  private pendingInteractions: Array<() => void> = [];
+  private subscriptions: Set<any> = new Set();
 
   // Reconnection parameters
   private reconnectAttempts = 0;
@@ -284,6 +286,15 @@ export class RSocketService {
 
     // Initialize the client with provided serializers and MIME types
     this.initializeClient();
+
+    effect(() => {
+      const socket = this.socket();
+      if (socket) {
+        // Process pending interactions
+        this.pendingInteractions.forEach(fn => fn());
+        this.pendingInteractions = [];
+      }
+    });
   }
 
   public getInstance(): RSocketClient<any, any> | undefined {
@@ -344,14 +355,17 @@ export class RSocketService {
   private connect(): void {
     this.client!.connect().subscribe({
       onComplete: (socket: any) => {
-        this.socket = socket;
-        this._isConnected.next(true);
+        this.socket.set(socket);
+        this._isConnected.set(true);
         this.reconnectAttempts = 0;
         console.log('Connected to RSocket server');
       },
       onError: (error: any) => {
         console.error('Connection error:', error);
-        this._isConnected.next(false);
+        this._isConnected.set(false);
+        this.socket.set(null);
+        this.cleanupSubscriptions(); // Cancel active subscriptions
+
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
           console.log(
@@ -396,25 +410,43 @@ export class RSocketService {
       metadata: compositeMetadata,
     };
 
-    if (this.socket) {
-      interactionFn(payload).subscribe({
+    const executeInteraction = () => {
+      const subscription = interactionFn(payload).subscribe({
         onComplete: () => {
           console.log('Interaction completed');
+          this.subscriptions.delete(subscription); // Remove from subscriptions
         },
         onError: (error: any) => {
           console.error(`Interaction error: ${error}`);
+          this.subscriptions.delete(subscription); // Remove from subscriptions
         },
         onNext: (payload: any) => {
-          console.log(payload);
           this.handleResponse<T>(payload, dataSignal);
         },
         onSubscribe: (subscription: any) => {
           subscription.request(requestItems);
         },
       });
+      this.subscriptions.add(subscription);
+    };
+
+    if (this.socket()) {
+      executeInteraction();
+    } else {
+      // Queue the interaction to be executed when the socket is connected
+      this.pendingInteractions.push(executeInteraction);
     }
 
     return dataSignal;
+  }
+
+  private cleanupSubscriptions(): void {
+    this.subscriptions.forEach((subscription) => {
+      if (subscription.cancel) {
+        subscription.cancel();
+      }
+    });
+    this.subscriptions.clear();
   }
 
   private getCompositeMetadata(token: string | Signal<string> | (() => (string | Signal<string>)) | undefined, route: string) {
@@ -449,7 +481,7 @@ export class RSocketService {
     token?: string | Signal<string> | (() => string | Signal<string>)
   ): WritableSignal<T[] | null> {
     return this.performInteraction<T>(
-      (payload) => this.socket.requestStream(payload),
+      (payload) => this.socket().requestStream(payload),
       route,
       data,
       requestItems,
@@ -470,7 +502,7 @@ export class RSocketService {
     token?: string | Signal<string> | (() => string | Signal<string>)
   ): WritableSignal<T | null> {
     return this.performInteraction<T>(
-      (payload) => this.socket.requestResponse(payload),
+      (payload) => this.socket().requestResponse(payload),
       route,
       data,
       1, // For requestResponse, request only 1 item
@@ -494,7 +526,7 @@ export class RSocketService {
   ): WritableSignal<T | null> {
     const data = Array.from(dataIterable); // Convert iterable to array
     return this.performInteraction<T>(
-      (payload) => this.socket.channel(payload),
+      (payload) => this.socket().channel(payload),
       route,
       data,
       requestItems,
@@ -521,7 +553,7 @@ export class RSocketService {
     };
 
     if (this.socket) {
-      this.socket.fireAndForget(payload);
+      this.socket().fireAndForget(payload);
       console.debug(`Fire-and-forget sent to route: ${route}`);
     } else {
       throw Error('RSocket connection is not established');
@@ -533,8 +565,8 @@ export class RSocketService {
    */
   public disconnect(): void {
     if (this.socket) {
-      this.socket.dispose();
-      this._isConnected.next(false);
+      this.socket().dispose();
+      this._isConnected.set(false);
       console.debug('Disconnected from RSocket server');
     }
   }
@@ -544,7 +576,8 @@ export class RSocketService {
    */
   ngOnDestroy(): void {
     this.disconnect();
-    this._isConnected.next(false);
+    this._isConnected.set(false);
+    this.cleanupSubscriptions(); // Cancel active subscriptions
   }
 
   /**
@@ -578,6 +611,24 @@ export class RSocketService {
     return null;
   }
 
+  private isBinaryData(data: any): boolean {
+    return (
+      (typeof Buffer !== 'undefined' && data instanceof Buffer) ||
+      data instanceof Uint8Array ||
+      data instanceof ArrayBuffer
+    );
+  }
+
+  private decodeBinaryData(data: Uint8Array | Buffer | ArrayBuffer): string {
+    if (data instanceof ArrayBuffer) {
+      return new TextDecoder().decode(new Uint8Array(data));
+    } else if (data instanceof Uint8Array) {
+      return new TextDecoder().decode(data);
+    }  else {
+      console.error('DataType:', typeof data);
+      throw new Error('Unsupported binary data type');
+    }
+  }
 
   /**
    * Handle the incoming payload and update the corresponding signal.
@@ -590,16 +641,18 @@ export class RSocketService {
   ): void {
     let parsedData: T;
 
-    if (this.config!.dataSerializer === IdentitySerializer) {
+    if (this.isBinaryData(payload.data)) {
       try {
-        const jsonString: string = payload.data.toString(); // Convert Buffer to string
-        parsedData = JSON.parse(jsonString); // Parse string to JSON
+        // Decode binary data to string
+        const jsonString: string = this.decodeBinaryData(payload.data);
+        // Parse JSON string to object
+        parsedData = JSON.parse(jsonString);
       } catch (err) {
         console.error('Error parsing JSON:', err);
         return;
       }
-
     } else {
+      // Assume data is already parsed
       parsedData = payload.data;
     }
 
@@ -610,3 +663,4 @@ export class RSocketService {
     }
   }
 }
+
