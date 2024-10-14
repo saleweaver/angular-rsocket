@@ -5,11 +5,14 @@ An Angular service for integrating RSocket communication into your Angular appli
 
 ### Features
 
-	-	RSocket Integration: Seamlessly integrate RSocket communication into your Angular application.
-	-	Angular Signals: Utilize Angular’s reactive Signal system for real-time data updates.
-	-	Flexible Token Management: Provide authentication tokens via configuration or a custom TokenProvider.
-	-	Automatic Reconnection: Configurable automatic reconnection logic with retry attempts and delays.
-	-	Dependency Injection: Leverage Angular’s DI system to manage services and tokens.
+-	RSocket Integration: Seamlessly integrate RSocket communication into your Angular application.
+
+-	Angular Signals: Utilize Angular’s reactive Signal system for real-time data updates.
+
+- Flexible Token/Auth Management: Provide authentication tokens via configuration or a custom TokenProvider.
+
+- Automatic Reconnection: Configurable automatic reconnection logic with retry attempts and delays.
+
 
 ### Installation
 
@@ -227,7 +230,7 @@ The RSocketService provides several methods for different interaction models:
 requestStream<T>(route: string, data?: any, requestItems?: number): WritableSignal<T[] | null>
 requestResponse<T>(route: string, data: any): WritableSignal<T | null>
 fireAndForget(route: string, data: any): void
-channel<T>(route: string, dataIterable: Iterable<any>, requestItems?: number): WritableSignal<T | null>
+  channel<T>(route: string, dataIterable: Iterable<any>, requestItems?: number): WritableSignal<T | null>
 ```
 
 9. Example: Using requestResponse in a Custom Service

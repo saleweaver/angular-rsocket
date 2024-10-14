@@ -5,11 +5,14 @@ An Angular service for integrating RSocket communication into your Angular appli
 
 ### Features
 
-	-	RSocket Integration: Seamlessly integrate RSocket communication into your Angular application.
-	-	Angular Signals: Utilize Angular’s reactive Signal system for real-time data updates.
-	-	Flexible Token Management: Provide authentication tokens via configuration or a custom TokenProvider.
-	-	Automatic Reconnection: Configurable automatic reconnection logic with retry attempts and delays.
-	-	Dependency Injection: Leverage Angular’s DI system to manage services and tokens.
+-	RSocket Integration: Seamlessly integrate RSocket communication into your Angular application.
+	
+-	Angular Signals: Utilize Angular’s reactive Signal system for real-time data updates.
+
+- Flexible Token/Auth Management: Provide authentication tokens via configuration or a custom TokenProvider.
+
+- Automatic Reconnection: Configurable automatic reconnection logic with retry attempts and delays.
+
 
 ### Installation
 
