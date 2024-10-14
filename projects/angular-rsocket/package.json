@@ -1,6 +1,6 @@
 {
   "name": "@michaeldatastic/angular-rsocket",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "repository": {
     "type": "git",
     "url": "https://github.com/saleweaver/angular-rsocket"
