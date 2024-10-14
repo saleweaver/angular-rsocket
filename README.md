@@ -22,6 +22,13 @@ To install the Angular RSocket Service, simply run:
 npm install @michaeldatastic/angular-rsocket
 ```
 
+
+### Contributing
+
+Thank you for considering contributing to the Angular RSocket Service Library! We welcome all types of contributions including bug fixes, new features, documentation improvements, and more. 
+Please see [Contributing.md](CONTRIBUTING.md) for more information on how to contribute to this project.
+
+
 ### Usage
 
 
