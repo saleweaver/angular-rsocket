@@ -1,38 +1,31 @@
-import {effect, Inject, Injectable, signal, Signal, WritableSignal} from '@angular/core';
+import {effect, Inject, Injectable, Optional, signal, Signal, WritableSignal} from '@angular/core';
+import type {Encoders} from 'rsocket-core';
 import {
   BufferEncoders,
+  deserializeFrame,
+  deserializeFrameWithLength,
   encodeBearerAuthMetadata,
   encodeCompositeMetadata,
   encodeRoute,
-  IdentitySerializer,
   MESSAGE_RSOCKET_AUTHENTICATION,
   MESSAGE_RSOCKET_ROUTING,
   RSocketClient,
+  serializeFrame,
+  serializeFrameWithLength,
+  toBuffer,
   WellKnownMimeType
 } from 'rsocket-core';
-import {ANGULAR_RSOCKET_CONFIG} from './angular-rsocket-tokens';
+import {ANGULAR_RSOCKET_CONFIG, ANGULAR_RSOCKET_TOKEN_PROVIDER} from './angular-rsocket-tokens';
 import {type AngularRSocketConfig} from './angular-rsocket-config';
 import {DEFAULT_ANGULAR_RSOCKET_CONFIG} from './default-angular-rsocket-config';
 
 
-import type {
-  DuplexConnection,
-  Frame,
-  ISubject,
-  ISubscriber,
-  ISubscription,
-} from 'rsocket-types';
-import type { Encoders } from 'rsocket-core';
+import type {DuplexConnection, Frame, ISubject, ISubscriber, ISubscription,} from 'rsocket-types';
 
-import { Flowable } from 'rsocket-flowable';
-import {
-  deserializeFrame,
-  deserializeFrameWithLength,
-  printFrame,
-  serializeFrame,
-  serializeFrameWithLength,
-  toBuffer,
-} from 'rsocket-core';
+import {Flowable} from 'rsocket-flowable';
+import {AngularRSocketTokenProvider} from './angular-rsocket-token-provider.interface';
+import {DefaultTokenProvider} from './angular-rsocket-token-provider';
+
 /**
  * Connection status types representing the various states of the connection.
  */
@@ -47,10 +40,10 @@ export type ConnectionStatus =
  * Constants representing each non-error connection status.
  */
 export const CONNECTION_STATUS = {
-  NOT_CONNECTED: { kind: "NOT_CONNECTED" } as ConnectionStatus,
-  CONNECTING: { kind: "CONNECTING" } as ConnectionStatus,
-  CONNECTED: { kind: "CONNECTED" } as ConnectionStatus,
-  CLOSED: { kind: "CLOSED" } as ConnectionStatus,
+  NOT_CONNECTED: {kind: "NOT_CONNECTED"} as ConnectionStatus,
+  CONNECTING: {kind: "CONNECTING"} as ConnectionStatus,
+  CONNECTED: {kind: "CONNECTED"} as ConnectionStatus,
+  CLOSED: {kind: "CLOSED"} as ConnectionStatus,
 } as const;
 
 export type ClientOptions = {
@@ -171,7 +164,7 @@ export default class RSocketWebSocketClient implements DuplexConnection {
       return;
     }
     const status: ConnectionStatus = error
-      ? { error, kind: 'ERROR' }
+      ? {error, kind: 'ERROR'}
       : CONNECTION_STATUS.CLOSED;
     this._setConnectionStatus(status);
     this._receivers.forEach((subscriber) => {
@@ -274,8 +267,10 @@ export class RSocketService {
   // Configuration
   private config: AngularRSocketConfig;
 
-  constructor(@Inject(ANGULAR_RSOCKET_CONFIG) private userConfig: AngularRSocketConfig) {
-
+  constructor(
+    @Inject(ANGULAR_RSOCKET_CONFIG) private userConfig: AngularRSocketConfig,
+    @Inject(ANGULAR_RSOCKET_TOKEN_PROVIDER) private readonly tokenProvider: AngularRSocketTokenProvider
+  ) {
     // Merge user configuration with default configuration
     this.config = {...DEFAULT_ANGULAR_RSOCKET_CONFIG, ...this.userConfig};
 
@@ -299,6 +294,7 @@ export class RSocketService {
   public getInstance(): RSocketClient<any, any> | undefined {
     return this.client;
   }
+
   /**
    * Initialize the RSocket client and establish connection.
    */
@@ -332,10 +328,10 @@ export class RSocketService {
    */
   private getSetupPayload(): any {
     const metadataPairs: [WellKnownMimeType, Buffer][] = [];
-
+    let token = this.tokenProvider!.getToken();
     // If a token is provided, include it in the setup payload
-    if (this.config!.token) {
-      const token = this.resolveProvidedToken(this.config!.token);
+    if (token) {
+      token = this.resolveProvidedToken(token);
       if (token) {
         metadataPairs.push([MESSAGE_RSOCKET_AUTHENTICATION, encodeBearerAuthMetadata(token)]);
       }
@@ -387,7 +383,6 @@ export class RSocketService {
    * @param route The RSocket route to interact with.
    * @param data The data payload to send.
    * @param requestItems The number of items to request (relevant for streams).
-   * @param token Optional JWT token for authentication.
    * @returns A WritableSignal that updates with incoming data.
    */
   private performInteraction<T>(
@@ -395,11 +390,11 @@ export class RSocketService {
     route: string,
     data: any,
     requestItems: number,
-    token?: string | Signal<string> | (() => string | Signal<string>)
   ): WritableSignal<T[] | T | null> {
     const dataSignal: WritableSignal<T[] | T | null> = signal(
       Array.isArray(data) ? [] : null
     );
+    const token = this.tokenProvider!.getToken();
     const compositeMetadata = this.getCompositeMetadata(token, route);
 
     const payload = {
@@ -448,7 +443,7 @@ export class RSocketService {
     this.subscriptions.clear();
   }
 
-  private getCompositeMetadata(token: string | Signal<string> | (() => (string | Signal<string>)) | undefined, route: string) {
+  private getCompositeMetadata(token: string | Signal<string> | null, route: string) {
     const resolvedToken = this.resolveProvidedToken(token);
 
     const metadataPairs: [WellKnownMimeType, Buffer][] = [
@@ -470,21 +465,18 @@ export class RSocketService {
    * @param route The RSocket route to interact with.
    * @param data Optional data payload.
    * @param requestItems The number of items to request (default: Number.MAX_SAFE_INTEGER).
-   * @param token Optional JWT token for authentication.
    * @returns A signal that updates with incoming data.
    */
   public requestStream<T>(
     route: string,
     data: any = null,
     requestItems: number = Number.MAX_SAFE_INTEGER,
-    token?: string | Signal<string> | (() => string | Signal<string>)
   ): WritableSignal<T[] | null> {
     return this.performInteraction<T>(
       (payload) => this.socket().requestStream(payload),
       route,
       data,
-      requestItems,
-      token
+      requestItems
     ) as WritableSignal<T[] | null>;
   }
 
@@ -498,14 +490,12 @@ export class RSocketService {
   public requestResponse<T>(
     route: string,
     data: any,
-    token?: string | Signal<string> | (() => string | Signal<string>)
   ): WritableSignal<T | null> {
     return this.performInteraction<T>(
       (payload) => this.socket().requestResponse(payload),
       route,
       data,
-      1, // For requestResponse, request only 1 item
-      token
+      1 // For requestResponse, request only 1 ite
     ) as WritableSignal<T | null>;
   }
 
@@ -514,22 +504,19 @@ export class RSocketService {
    * @param route The RSocket route to interact with.
    * @param dataIterable An iterable of data to send.
    * @param requestItems The number of items to request.
-   * @param token Optional JWT token for authentication.
    * @returns A signal that updates with incoming data from the server.
    */
   public channel<T>(
     route: string,
     dataIterable: Iterable<any>,
     requestItems: number = Number.MAX_SAFE_INTEGER,
-    token?: string | Signal<string> | (() => string | Signal<string>)
   ): WritableSignal<T | null> {
     const data = Array.from(dataIterable); // Convert iterable to array
     return this.performInteraction<T>(
       (payload) => this.socket().channel(payload),
       route,
       data,
-      requestItems,
-      token
+      requestItems
     ) as WritableSignal<T | null>;
   }
 
@@ -537,13 +524,12 @@ export class RSocketService {
    * Send a fire-and-forget message to a specific route.
    * @param route The RSocket route to interact with.
    * @param data Data payload.
-   * @param token Optional JWT token for authentication.
    */
   public fireAndForget(
     route: string,
     data: any,
-    token?: string | Signal<string> | (() => string | Signal<string>)
   ): void {
+    const token = this.tokenProvider!.getToken();
     const compositeMetadata = this.getCompositeMetadata(token, route);
 
     const payload = {
@@ -585,7 +571,7 @@ export class RSocketService {
    * @param token The token to resolve.
    * @returns The resolved JWT token or null.
    */
-  private resolveProvidedToken(token?: string | Signal<string> | (() => string | Signal<string>)): string | null {
+  private resolveProvidedToken(token?: string | Signal<string> | null): string | null {
     if (!token) return null;
 
     if (typeof token === 'string') {
@@ -593,13 +579,7 @@ export class RSocketService {
     }
 
     if (typeof token === 'function') {
-      const result = token();
-      if (typeof result === 'string') {
-        return result;
-      }
-      if (typeof result === 'function') { // Signal<string>
-        return result();
-      }
+      return token();
     }
 
     // If token is a Signal<string>
@@ -623,7 +603,7 @@ export class RSocketService {
       return new TextDecoder().decode(new Uint8Array(data));
     } else if (data instanceof Uint8Array) {
       return new TextDecoder().decode(data);
-    }  else {
+    } else {
       console.error('DataType:', typeof data);
       throw new Error('Unsupported binary data type');
     }

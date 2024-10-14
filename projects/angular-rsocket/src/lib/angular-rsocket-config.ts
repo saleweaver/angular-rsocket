@@ -60,5 +60,5 @@ export interface AngularRSocketConfig {
    * Optional JWT token for authentication.
    * If provided, authentication metadata will be included in requests.
    */
-  token?: string | Signal<string> | (() => string | Signal<string>);
+  token?: string;
 }
