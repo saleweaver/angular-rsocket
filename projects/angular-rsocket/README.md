@@ -46,7 +46,7 @@ In your application’s configuration, provide the RSocket service using the pro
 import { ApplicationConfig } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideZoneChangeDetection } from '@angular/core';
-import { provideRSocket } from 'your-angular-rsocket-package';
+import { provideRSocket } from '@michaeldatastic/angular-rsocket';
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
@@ -70,7 +70,7 @@ It’s recommended to handle subscriptions and data sharing in your own services
 // board-updates.service.ts
 
 import { Injectable } from '@angular/core';
-import { RSocketService } from 'your-angular-rsocket-package';
+import { RSocketService } from '@michaeldatastic/angular-rsocket';
 import { Signal } from '@angular/core';
 
 @Injectable({
@@ -150,7 +150,7 @@ export interface AngularRSocketTokenProvider {
 // custom-token-provider.ts
 
 import { Injectable, inject } from '@angular/core';
-import { AngularRSocketTokenProvider } from 'your-angular-rsocket-package';
+import { AngularRSocketTokenProvider } from '@michaeldatastic/angular-rsocket';
 import { AuthService } from './auth.service';
 import { Signal, signal, effect } from '@angular/core';
 
@@ -251,7 +251,7 @@ fireAndForget(route: string, data: any): void
 // data-service.ts
 
 import { Injectable } from '@angular/core';
-import { RSocketService } from 'your-angular-rsocket-package';
+import { RSocketService } from '@michaeldatastic/angular-rsocket';
 import { Signal } from '@angular/core';
 
 @Injectable({

@@ -6,7 +6,7 @@ An Angular service for integrating RSocket communication into your Angular appli
 ### Features
 
 -	RSocket Integration: Seamlessly integrate RSocket communication into your Angular application.
-	
+
 -	Angular Signals: Utilize Angular’s reactive Signal system for real-time data updates.
 
 - Flexible Token/Auth Management: Provide authentication tokens via configuration or a custom TokenProvider.
@@ -30,7 +30,7 @@ npm install @michaeldatastic/angular-rsocket
 
 ### Contributing
 
-Thank you for considering contributing to the Angular RSocket Service Library! We welcome all types of contributions including bug fixes, new features, documentation improvements, and more. 
+Thank you for considering contributing to the Angular RSocket Service Library! We welcome all types of contributions including bug fixes, new features, documentation improvements, and more.
 Please see [Contributing.md](CONTRIBUTING.md) for more information on how to contribute to this project.
 
 
@@ -46,7 +46,7 @@ In your application’s configuration, provide the RSocket service using the pro
 import { ApplicationConfig } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideZoneChangeDetection } from '@angular/core';
-import { provideRSocket } from 'your-angular-rsocket-package';
+import { provideRSocket } from '@michaeldatastic/angular-rsocket';
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
@@ -70,7 +70,7 @@ It’s recommended to handle subscriptions and data sharing in your own services
 // board-updates.service.ts
 
 import { Injectable } from '@angular/core';
-import { RSocketService } from 'your-angular-rsocket-package';
+import { RSocketService } from '@michaeldatastic/angular-rsocket';
 import { Signal } from '@angular/core';
 
 @Injectable({
@@ -150,7 +150,7 @@ export interface AngularRSocketTokenProvider {
 // custom-token-provider.ts
 
 import { Injectable, inject } from '@angular/core';
-import { AngularRSocketTokenProvider } from 'your-angular-rsocket-package';
+import { AngularRSocketTokenProvider } from '@michaeldatastic/angular-rsocket';
 import { AuthService } from './auth.service';
 import { Signal, signal, effect } from '@angular/core';
 
@@ -242,7 +242,7 @@ The RSocketService provides several methods for different interaction models:
 requestStream<T>(route: string, data?: any, requestItems?: number): WritableSignal<T[] | null>
 requestResponse<T>(route: string, data: any): WritableSignal<T | null>
 fireAndForget(route: string, data: any): void
-channel<T>(route: string, dataIterable: Iterable<any>, requestItems?: number): WritableSignal<T | null>
+  channel<T>(route: string, dataIterable: Iterable<any>, requestItems?: number): WritableSignal<T | null>
 ```
 
 9. Example: Using requestResponse in a Custom Service
@@ -251,7 +251,7 @@ channel<T>(route: string, dataIterable: Iterable<any>, requestItems?: number): W
 // data-service.ts
 
 import { Injectable } from '@angular/core';
-import { RSocketService } from 'your-angular-rsocket-package';
+import { RSocketService } from '@michaeldatastic/angular-rsocket';
 import { Signal } from '@angular/core';
 
 @Injectable({
