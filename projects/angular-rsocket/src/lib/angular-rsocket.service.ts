@@ -13,7 +13,6 @@ import {
 import {ANGULAR_RSOCKET_CONFIG} from './angular-rsocket-tokens';
 import {type AngularRSocketConfig} from './angular-rsocket-config';
 import {DEFAULT_ANGULAR_RSOCKET_CONFIG} from './default-angular-rsocket-config';
-import {BehaviorSubject, Observable} from 'rxjs';
 
 
 import type {
