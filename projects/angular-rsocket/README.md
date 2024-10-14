@@ -186,10 +186,12 @@ export const appConfig: ApplicationConfig = {
 The provideRSocket function accepts an AngularRSocketConfig object with the following optional properties, only url is required:
 
 ```typescript
+import {IdentitySerializer, JsonSerializer} from "rsocket-core";
+
 provideRSocket({
   url: 'ws://localhost:8080/rsocket',         // RSocket server URL *<required>*
-  dataSerializer: yourDataSerializer,         // Custom data serializer
-  metadataSerializer: yourMetadataSerializer, // Custom metadata serializer
+  dataSerializer: IdentitySerializer | JsonSerializer,         // Custom data serializer
+  metadataSerializer: IdentitySerializer | JsonSerializer, // Custom metadata serializer
   keepAlive: 60000,                           // Keep-alive interval in milliseconds
   lifetime: 180000,                           // Connection lifetime in milliseconds
   dataMimeType: WellKnownMimeType.APPLICATION_JSON,  // Data MIME type
