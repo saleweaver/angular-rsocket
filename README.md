@@ -223,11 +223,12 @@ this.rsocketService.disconnect();
 
 The RSocketService provides several methods for different interaction models:
 
-	•	requestStream<T>(route: string, data?: any, requestItems?: number): WritableSignal<T[] | null>
-	•	requestResponse<T>(route: string, data: any): WritableSignal<T | null>
-	•	fireAndForget(route: string, data: any): void
-	•	channel<T>(route: string, dataIterable: Iterable<any>, requestItems?: number): WritableSignal<T | null>
-
+```typescript
+requestStream<T>(route: string, data?: any, requestItems?: number): WritableSignal<T[] | null>
+requestResponse<T>(route: string, data: any): WritableSignal<T | null>
+fireAndForget(route: string, data: any): void
+channel<T>(route: string, dataIterable: Iterable<any>, requestItems?: number): WritableSignal<T | null>
+```
 
 9. Example: Using requestResponse in a Custom Service
 
